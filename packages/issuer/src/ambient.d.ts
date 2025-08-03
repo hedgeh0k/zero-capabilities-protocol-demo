@@ -7,11 +7,11 @@
   'any' type.
 */
 declare module '../../common/dist/key-utils.js' {
-  export * from '../../common/src/key-utils';
+    export * from '../../common/src/key-utils';
 }
 declare module '../../common/dist/zcap-utils.js' {
-  export * from '../../common/src/zcap-utils';
+    export * from '../../common/src/zcap-utils';
 }
 declare module '../../common/dist/logger.js' {
-  export * from '../../common/src/logger';
+    export * from '../../common/src/logger';
 }

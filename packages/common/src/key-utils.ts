@@ -8,17 +8,17 @@
  * TODO-PROD – store private keys in an HSM or Vault, never on
  *             local disk.
  * -------------------------------------------------------------- */
-import { randomUUID, generateKeyPairSync } from 'crypto';
+import {generateKeyPairSync, randomUUID} from 'crypto';
 
 /** The shape of a party’s keys as returned by generateKeys(). */
 export interface PartyKeys {
-  /** The Decentralized Identifier (DID) representing this actor. */
-  did: string;
-  /** A simple key pair.  Keys are base64 encoded for portability. */
-  keyPair: {
-    publicKey: string;
-    privateKey: string;
-  };
+    /** The Decentralized Identifier (DID) representing this actor. */
+    did: string;
+    /** A simple key pair.  Keys are base64 encoded for portability. */
+    keyPair: {
+        publicKey: string;
+        privateKey: string;
+    };
 }
 
 /**
@@ -28,20 +28,20 @@ export interface PartyKeys {
  * strings for ease of persistence.
  */
 export async function generateKeys(): Promise<PartyKeys> {
-  // Generate a key pair synchronously.  Node’s crypto module
-  // guarantees that the underlying primitives are secure.
-  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
-  // Create a random DID using the example method.  In a real
-  // deployment you would register a DID using an appropriate method.
-  const did = `did:example:${randomUUID()}`;
-  // Export keys as DER encoded binary and convert to base64.
-  const pubBuf = publicKey.export({ format: 'der', type: 'spki' }) as Buffer;
-  const privBuf = privateKey.export({ format: 'der', type: 'pkcs8' }) as Buffer;
-  return {
-    did,
-    keyPair: {
-      publicKey: pubBuf.toString('base64'),
-      privateKey: privBuf.toString('base64'),
-    },
-  };
+    // Generate a key pair synchronously.  Node’s crypto module
+    // guarantees that the underlying primitives are secure.
+    const {publicKey, privateKey} = generateKeyPairSync('ed25519');
+    // Create a random DID using the example method.  In a real
+    // deployment you would register a DID using an appropriate method.
+    const did = `did:example:${randomUUID()}`;
+    // Export keys as DER encoded binary and convert to base64.
+    const pubBuf = publicKey.export({format: 'der', type: 'spki'}) as Buffer;
+    const privBuf = privateKey.export({format: 'der', type: 'pkcs8'}) as Buffer;
+    return {
+        did,
+        keyPair: {
+            publicKey: pubBuf.toString('base64'),
+            privateKey: privBuf.toString('base64'),
+        },
+    };
 }

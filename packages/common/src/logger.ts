@@ -5,5 +5,5 @@
  * to scan the output when debugging.
  * -------------------------------------------------------------- */
 export const log = (tag: string, msg: string): void => {
-  console.log(`➤ ${tag.padEnd(6)} ${msg}`);
+    console.log(`➤ ${tag.padEnd(6)} ${msg}`);
 };

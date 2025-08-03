@@ -44,7 +44,9 @@ client UI can read them without any network calls.
 ### Dataset server
 
 The dataset server hosts a small collection of JSON files embedded at
-build time.  Requests must include two HTTP headers:
+build time.  On start it now waits for the issuer to write key and
+capability files and logs every loaded capability for traceability.
+Requests must include two HTTP headers:
 
 | Header         | Description                                                    |
 |---------------|----------------------------------------------------------------|
@@ -61,9 +63,11 @@ issued to a given controller DID.
 The client UI listens on port 8080 (exposed as 4500 via
 docker‑compose).  It reads the keys and capabilities from the shared
 volume, lists each scenario on the home page and, when clicked,
-retrieves the dataset through the appropriate server.  The UI signs
-requests by including the caller’s DID in the request headers – the
-private key never leaves the server.
+retrieves the dataset through the appropriate server.  The result
+page now shows the scenario description and the exact request URL
+alongside the HTTP status and response body.  The UI signs requests by
+including the caller’s DID in the request headers – the private key
+never leaves the server.
 
 ## Legal agreements and scenarios
 
@@ -85,9 +89,11 @@ docker compose up --build
 ```
 
 Navigate to [http://localhost:4500](http://localhost:4500) and click
-through the scenarios.  Terminal logs will show emoji‑tagged messages
-like “VERIFY cap …”, “ALLOW …” and “DENY …” explaining the
-authorization decisions.
+through the scenarios.  The issuer starts first to generate keys and
+capabilities, after which the dataset servers load them and report
+their progress.  Terminal logs will show emoji‑tagged messages like
+“VERIFY cap …”, “ALLOW …” and “DENY …” explaining the authorization
+decisions.
 
 ### Production gap checklist
 

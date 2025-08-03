@@ -11,16 +11,16 @@
 /** A map from request paths to serialized JSON payloads.  Keys must
  * begin with a slash.  See README for descriptions of each file. */
 export const DATA: Record<string, string> = {
-  '/ab.json': JSON.stringify({ dataset: 'AB', note: 'readable by B' }),
-  '/ac.json': JSON.stringify({ dataset: 'AC', note: 'delegated to C' }),
-  '/x-to-y.json': JSON.stringify({
-    dataset: 'AB',
-    transform: 'x-to-y output',
-    readers: ['CompanyA', 'CompanyB'],
-  }),
-  '/x-to-z.json': JSON.stringify({
-    dataset: 'AB',
-    transform: 'x-to-z output',
-    readers: ['UserC'],
-  }),
+    '/ab.json': JSON.stringify({dataset: 'AB', note: 'readable by B'}),
+    '/ac.json': JSON.stringify({dataset: 'AC', note: 'delegated to C'}),
+    '/x-to-y.json': JSON.stringify({
+        dataset: 'AB',
+        transform: 'x-to-y output',
+        readers: ['CompanyA', 'CompanyB'],
+    }),
+    '/x-to-z.json': JSON.stringify({
+        dataset: 'AB',
+        transform: 'x-to-z output',
+        readers: ['UserC'],
+    }),
 };
