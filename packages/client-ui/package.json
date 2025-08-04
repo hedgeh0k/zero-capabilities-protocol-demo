@@ -9,5 +9,8 @@
     },
     "devDependencies": {
         "@types/node": "^20.11.19"
+    },
+    "dependencies": {
+        "escape-html": "^1.0.3"
     }
 }
