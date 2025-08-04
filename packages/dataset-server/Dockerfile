@@ -4,10 +4,6 @@ FROM node:22-slim
 # Set working directory
 WORKDIR /app
 
-# Accept build argument to choose which dataset module to compile
-ARG DATA_MODULE=data-abc
-ENV DATA_MODULE=${DATA_MODULE}
-
 # Copy the common helpers and dataset server code
 COPY packages/common ./packages/common
 COPY packages/dataset-server ./packages/dataset-server

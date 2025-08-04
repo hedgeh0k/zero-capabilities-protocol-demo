@@ -90,29 +90,25 @@ HTTP status from server A/B, and the raw dataset or an error message.</p>`);
                 // invocationTarget.  For transform capabilities we use the
                 // protocol specified in the caveats and append .json.
                 let targetPath: string;
+                let targetDomain: string;
                 if (cap.allowedActions.includes('transform')) {
+                    // For transforms we trust the protocol + targetDomain caveat.
                     const proto = cap.caveats?.protocol;
                     targetPath = `/${proto}.json`;
+                    targetDomain = cap.caveats?.targetDomain ?? 'b.example.com';
                 } else {
-                    // Parse invocationTarget as a URL to extract pathname.
+                    // Plain read → derive from invocationTarget.
                     try {
                         const t = new URL(cap.invocationTarget);
                         targetPath = t.pathname;
+                        targetDomain = t.hostname;
                     } catch {
                         targetPath = '/';
+                        targetDomain = 'a.example.com';
                     }
                 }
-                // Extract the domain from invocationTarget to map to a port.
-                let domain: string;
-                try {
-                    const t = new URL(cap.invocationTarget);
-                    domain = t.hostname;
-                } catch {
-                    domain = 'a.example.com';
-                }
-                const port = domainToPort[domain];
-                // Default to party A if domain is unrecognised.
-                const host = port ? `http://localhost:${port}` : `http://localhost:4100`;
+
+                const host = `http://${targetDomain}:3000`;
                 const urlToFetch = `${host}${targetPath}`;
                 log('📡', `${id} → ${urlToFetch}`);
                 // Perform the HTTP request to the dataset server.  We attach

@@ -1,0 +1,8 @@
+{
+    "dataset": "AB",
+    "transform": "x-to-y output",
+    "readers": [
+        "CompanyA",
+        "CompanyB"
+    ]
+}

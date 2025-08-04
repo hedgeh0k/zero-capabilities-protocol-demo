@@ -1,0 +1,7 @@
+{
+    "dataset": "AB",
+    "transform": "x-to-z output",
+    "readers": [
+        "UserC"
+    ]
+}

@@ -21,21 +21,33 @@
 
 import http from 'node:http';
 import fs from 'node:fs/promises';
-import {URL} from 'node:url';
+import path from "node:path";
+import {fileURLToPath, URL} from 'node:url';
 // Suppress type checking for imports from compiled common modules.
 // @ts-ignore
 import {log} from '../../common/dist/logger.js';
 
-// At build time the DATA_MODULE argument is provided via docker
-// build args.  It selects which dataset module to compile into the
-// server.  Fall back to data-abc for local runs.
-const dataModuleName: string = process.env.DATA_MODULE || 'data-abc';
-// Lazy import of the data map.  We wrap in an async function to
-// satisfy the TypeScript compiler; top‑level await is supported in
-// ES modules but this approach is explicit.
-async function loadData() {
-    const mod = await import(`./${dataModuleName}.js`);
-    return mod.DATA as Record<string, string>;
+async function loadData(): Promise<Record<string, string>> {
+    const DATA_DIR = process.env.DATA_DIR || path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)), '../data');
+
+    const stack = [DATA_DIR];
+    const map: Record<string, string> = {};
+
+    while (stack.length) {
+        const dir = stack.pop()!;
+        const dirents = await fs.readdir(dir, {withFileTypes: true});
+        for (const d of dirents) {
+            const full = path.join(dir, d.name);
+            if (d.isDirectory()) {
+                stack.push(full);
+            } else if (d.isFile() && d.name.endsWith('.json')) {
+                const raw = await fs.readFile(full, 'utf8');
+                map[`/${d.name}`] = raw;    // key = "/file.json"
+            }
+        }
+    }
+    return map;
 }
 
 // Load all capability files from the shared /caps volume.  We build
@@ -97,7 +109,7 @@ async function main() {
     const DOMAIN = process.env.DOMAIN || 'unknown.example.com';
     const PORT = Number(process.env.PORT) || 3000;
     const DATA = await loadData();
-    log('📚', `data module ${dataModuleName} loaded with ${Object.keys(DATA).length} files`);
+    log('📚', `data module loaded with ${Object.keys(DATA).length} files`);
     const {byId: capsById, byController: capsByController} = await loadCaps();
     const didToLabel = await loadDidToLabel();
 
@@ -206,7 +218,9 @@ async function main() {
                 res.end('transform not allowed');
                 return;
             }
-            const expectedProtocol = file.startsWith('/x-to-y') ? 'x-to-y' : 'x-to-z';
+            // const expectedProtocol = file.startsWith('/x-to-y') ? 'x-to-y' : 'x-to-z';
+            const protoMatch = file.match(/^\/(.+)\.json$/);
+            const expectedProtocol = protoMatch ? protoMatch[1] : '';
             if (!cap.caveats || cap.caveats.protocol !== expectedProtocol) {
                 log('🔴', 'DENY protocol mismatch');
                 res.statusCode = 403;

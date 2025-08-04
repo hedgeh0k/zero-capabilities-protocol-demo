@@ -99,6 +99,7 @@ async function main(): Promise<void> {
         caveats: {
             protocol: DATASET.protoY,
             readers: [A, B],
+            targetDomain: PARTY.CompanyB.domain
         },
     });
     log('📝', 'scenario C capability issued');
@@ -112,6 +113,7 @@ async function main(): Promise<void> {
         caveats: {
             protocol: DATASET.protoZ,
             readers: [C],
+            targetDomain: PARTY.CompanyB.domain
         },
     });
     log('📝', 'scenario D capability issued');
