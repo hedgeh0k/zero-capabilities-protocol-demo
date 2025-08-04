@@ -135,7 +135,7 @@ HTTP status from server A/B, and the raw dataset or an error message.</p>`);
                 } catch (e: any) {
                     status = 500;
                     text = String(e.message || e);
-                    log('🔴', `${id} → error: ${text}`);
+                    log('🔴', `${id} → error: ${text}`, e);
                 }
                 // Render the result page.  We escape the capability JSON and
                 // result to prevent injection issues.  Because this is a

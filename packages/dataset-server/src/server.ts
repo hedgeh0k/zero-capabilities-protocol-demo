@@ -231,7 +231,7 @@ async function main() {
             res.end(DATA[file]);
         } catch (err: any) {
             const msg = err?.message || String(err);
-            log('❗', `internal error: ${msg}`);
+            log('❗', `internal error: ${msg}`, err);
             res.statusCode = 500;
             res.end('internal error');
         }
