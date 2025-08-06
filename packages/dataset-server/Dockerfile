@@ -13,6 +13,9 @@ RUN npm install --save-dev @types/node
 
 # Build the dataset server
 WORKDIR /app/packages/dataset-server
+RUN npm install -g typescript
+RUN npm install --save-dev @types/node
+RUN npm install
 RUN npm run build
 
 # Expose the internal port used by the server (will be mapped by docker-compose)

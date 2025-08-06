@@ -6,12 +6,11 @@ WORKDIR /app
 
 COPY packages/issuer ./packages/issuer
 
-# Install TypeScript globally (no external deps needed)
-RUN npm install -g typescript
-RUN npm install --save-dev @types/node
-
 # Build the issuer package
 WORKDIR /app/packages/issuer
+RUN npm install -g typescript
+RUN npm install --save-dev @types/node
+RUN npm install
 RUN npm run build
 
 # Provide a mount point for the shared caps volume
