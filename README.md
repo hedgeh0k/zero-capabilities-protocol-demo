@@ -1,109 +1,68 @@
-# ZCAP ABC Demo
+# Zero Capabilities Protocol Demo
 
-This project implements a minimalist demonstration of object
-capabilities (ZCAPs) for controlled data sharing between three
-parties: **Company A**, **Company B** and **User C**.  The goal is to
-encode a handful of legal agreements as signed capabilities and
-validate those capabilities at runtime without a central authority.
+This repository showcases a minimal end‑to‑end example of using
+[zcap](https://w3c-ccg.github.io/zcap-spec/) object capabilities for
+controlled data sharing. Three actors are involved:
+
+* **CompanyA** – owns the source dataset
+* **CompanyB** – performs transforms on the dataset
+* **UserC** – consumes data that B is authorised to release
+
+The demo encodes the agreements between these parties as signed JSON
+capabilities and validates them at request time.
 
 ## Repository layout
 
 ```
-zcap-abc-demo/
-├── docker-compose.yml      # defines four services (issuer, party‑a,
-│                           # party‑b and client UI) and a shared volume
+zero-capabilities-protocol-demo/
+├── docker-compose.yml      # four services + shared /caps volume
 └── packages/
-    ├── common/             # helpers (keys, logger, zcap wrapper)
-    ├── issuer/             # generates 3 keys + 4 capabilities
-    ├── dataset-server/     # generic API (A and B reuse it)
-    └── client-ui/          # acts as User C
+    ├── issuer/             # generates keys and capabilities
+    ├── dataset-server/     # generic API server reused by A and B
+    └── client-ui/          # Next.js app acting as User C
 ```
 
-Each package is self contained with its own `package.json`,
-`tsconfig.json` and TypeScript sources under `src/`.  Running `npm run
-build` in a package compiles the TypeScript to ES modules in the
-corresponding `dist/` directory.
-
-### Common
-
-The `common` package provides three helpers:
-
-* `logger.ts` – prints messages with emoji tags to aid debugging.
-* `key-utils.ts` – generates Ed25519 key pairs and example DIDs.
-* `zcap-utils.ts` – constructs simplified capabilities and handles
-  delegation logic.  It does **not** implement linked data proofs.
+Each package contains its own `package.json`, `tsconfig.json` and
+TypeScript sources in `src/`. Run `npm run build` within a package to
+compile to ESM in its `dist/` folder.
 
 ### Issuer
 
-The `issuer` package runs once at container start.  It generates a
-key pair for each party and constructs four capabilities representing
-the legal agreements listed below.  The keys and capabilities are
-written into the shared `/caps` volume so that the dataset servers and
-client UI can read them without any network calls.
+Runs once at container start to create key pairs for the three parties
+and to mint four capabilities that correspond to the scenarios below.
+The resulting files are written to the shared `/caps` volume so that the
+servers and client UI can read them without any network calls.
 
 ### Dataset server
 
-The dataset server hosts a small collection of JSON files embedded at
-build time.  On start it now waits for the issuer to write key and
-capability files and logs every loaded capability for traceability.
-Requests must include two HTTP headers:
+Serves embedded JSON datasets and validates incoming requests against the stored capabilities and verifies signatures.
 
-| Header         | Description                                                    |
-|---------------|----------------------------------------------------------------|
-| `Capability‑Id` | The ID of the capability being invoked                        |
-| `Caller‑Did`   | The DID of the caller (used for reader checks)                |
-
-Based on the capability’s allowed actions and caveats the server will
-either return the requested dataset or respond with a 403.  An
-introspection route `/zcaps?controller=<did>` returns all capabilities
-issued to a given controller DID.
+An additional introspection endpoint is provided for debugging: `GET /zcaps?controller=<did>` returns the list of
+capabilities issued to the supplied controller DID.
 
 ### Client UI
 
-The client UI is now implemented as a small **Next.js** single page
-application styled with **DaisyUI** components.  It listens on port 8080
-(exposed as 4500 via docker‑compose) and reads keys and capabilities from
-the shared volume.  Scenarios are presented as collapsible panels so
-results appear inline without any full page reloads.  Each run uses
-asynchronous `fetch` calls that attach the caller’s DID to the request –
-the private key never leaves the server.
+A small **Next.js** + **DaisyUI** application that exercises the scenarios. It listens on port `8080` (exposed as `4500`
+via`docker-compose`) and reads keys and capabilities from the shared volume.
+Each scenario uses `fetch` to call the dataset server, **signing** requests on the fly using the caller's key.
 
-## Legal agreements and scenarios
+## Scenarios
 
-The demo encodes four legal agreements using four capabilities:
+Four legal agreements are modelled as capabilities:
 
-| Scenario | Capability file | Legal agreement                                                                | Expected from client UI |
-|---------|-----------------|--------------------------------------------------------------------------------|-------------------------|
-| **A**   | `abc-A.json`    | Company A owns dataset X, Company B may read it.  This capability does **not** allow delegation. | 🔴 403 (Client = C) |
-| **B**   | `abc-B.json`    | Company A ➔ Company B (read + delegate) ➔ User C may read dataset X.                             | 🟢 200, sees AB json |
-| **C**   | `abc-C.json`    | Company A allows Company B to process dataset X via protocol *x‑to‑y*.  Only Company A and Company B may read the derived dataset. | 🔴 403 |
-| **D**   | `abc-D.json`    | Company A allows Company B to process dataset X via protocol *x‑to‑z*.  Only User C may read the derived dataset.                | 🟢 200, sees x‑to‑z json |
+| Scenario | Capability file | Agreement                                                                 | UI result  |
+|----------|-----------------|---------------------------------------------------------------------------|------------|
+| **A**    | `abc-A.json`    | A owns dataset X; B may read it. No delegation allowed.                   | 🔴 403 (C) |
+| **B**    | `abc-B.json`    | A ➔ B (read + delegate) ➔ C may read X.                                   | 🟢 200     |
+| **C**    | `abc-C.json`    | A allows B to transform X using protocol *x-to-y*. Readers: A and B only. | 🔴 403     |
+| **D**    | `abc-D.json`    | A allows B to transform X using protocol *x-to-z*. Reader: C only.        | 🟢 200     |
 
-### How to run
+## Running the demo
 
-Build and start the demo with Docker:
+Build and start all services with Docker:
 
 ```sh
 docker compose up --build
 ```
 
-Navigate to [http://localhost:4500](http://localhost:4500) and click
-through the scenarios.  The issuer starts first to generate keys and
-capabilities, after which the dataset servers load them and report
-their progress.  Terminal logs will show emoji‑tagged messages like
-“VERIFY cap …”, “ALLOW …” and “DENY …” explaining the authorization
-decisions.
-
-### Production gap checklist
-
-Several important aspects are deliberately omitted from this demo for
-brevity.  The code marks these with `TODO‑PROD` comments where
-appropriate:
-
-* **Secure key storage** – keys should live in an HSM or secret vault.
-* **Capability revocation/expiry** – implement a revocation list and
-  expiration checks in the dataset server.
-* **Signed transform outputs** – a micro‑service could perform
-  transforms and sign results instead of serving static JSON.
-* **HTTPS termination** – use a reverse proxy such as Caddy or
-  Traefik to provide TLS for all services.
+Open [http://localhost:4500](http://localhost:4500) and trigger the scenarios.

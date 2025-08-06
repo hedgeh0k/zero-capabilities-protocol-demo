@@ -1,6 +1,10 @@
 import type {NextApiRequest, NextApiResponse} from 'next';
 import fs from 'node:fs/promises';
-import {CAPABILITY_DIRECTORY, DATA_SERVER_PORT, KEYS_FILE_NAME, PORTS,} from '../../lib/constants';
+// @ts-ignore
+import {signCapabilityInvocation} from '@digitalbazaar/http-signature-zcap-invoke';
+
+import {loadInvocationSigner} from '../../lib/loadInvocationSigner';
+import {CAPABILITY_DIRECTORY, DATA_SERVER_PORT, KEYS_FILE_NAME, PORTS} from '../../lib/constants';
 import {SCENARIO_IDS} from '../../lib/scenarios';
 
 export default async function handler(
@@ -26,22 +30,43 @@ export default async function handler(
             )
         );
         const clientDecentralizedIdentifier = keyData['UserC'].did;
+
         let datasetPath: string;
         let datasetDomain: string;
-        if (capability.allowedActions.includes('transform')) {
-            datasetPath = `/${capability.caveats.protocol}.json`;
-            datasetDomain = capability.caveats.targetDomain;
+        if (
+            capability.allowedAction.includes('transform') &&
+            capability.caveats?.protocol &&
+            capability.caveats?.targetDomain
+        ) {
+            // For transform zcaps, caveats tell us where the derived dataset lives.
+            datasetPath = `/${capability.caveats.protocol}.json`; // e.g. '/x-to-y.json'
+            datasetDomain = capability.caveats.targetDomain;        // e.g. 'b.example.com'
         } else {
+            // Plain read (or transform without caveats) - fall back to the target URL.
             const target = new URL(capability.invocationTarget);
             datasetPath = target.pathname;
             datasetDomain = target.hostname;
         }
-        const requestHeaders = {
-            'capability-id': capability.id,
-            'caller-did': clientDecentralizedIdentifier,
-        };
+
+        const invocationSigner = await loadInvocationSigner(keyData['UserC']);
         const url = `http://${datasetDomain}:${DATA_SERVER_PORT}${datasetPath}`;
-        const serverResponse = await fetch(url, {headers: requestHeaders});
+        const signedHeaders = await signCapabilityInvocation({
+            url,
+            method: 'GET',
+            headers: {},
+            capability,
+            capabilityAction: capability.allowedAction.includes('transform')
+                ? 'transform'
+                : 'read',
+            invocationSigner,
+        });
+        /* for human-readable debug info keep the two convenience headers */
+        const headersForClient = {};
+        headersForClient['capability-id'] = capability.id;
+        headersForClient['caller-did'] = clientDecentralizedIdentifier;
+
+        const serverResponse = await fetch(url, {headers: headersForClient});
+
         const responseBody = await serverResponse.text();
         const responseHeaders = Object.fromEntries(
             serverResponse.headers.entries()
@@ -55,10 +80,11 @@ export default async function handler(
             responseHeaders,
             responseBody,
             capability,
-            requestHeaders,
+            requestHeaders: signedHeaders,
             clientDecentralizedIdentifier,
         });
     } catch (e: any) {
-        response.status(500).json({error: String(e)});
+        console.log("Failed to run", e);
+        response.status(500).json({error: JSON.stringify(e)});
     }
 }

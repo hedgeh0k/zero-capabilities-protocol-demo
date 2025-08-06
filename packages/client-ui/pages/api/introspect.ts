@@ -1,19 +1,17 @@
 import type {NextApiRequest, NextApiResponse} from 'next';
 import fs from 'node:fs/promises';
-import {CAPABILITY_DIRECTORY, DATA_SERVER_PORT, KEYS_FILE_NAME,} from '../../lib/constants';
+import {CAPABILITY_DIRECTORY, KEYS_FILE_NAME,} from '../../lib/constants';
 
 export default async function handler(
     request: NextApiRequest,
     response: NextApiResponse
 ) {
     try {
-        const capabilityDirectory = CAPABILITY_DIRECTORY;
         const keys = JSON.parse(
-            await fs.readFile(`${capabilityDirectory}/${KEYS_FILE_NAME}`, 'utf8')
+            await fs.readFile(`${CAPABILITY_DIRECTORY}/${KEYS_FILE_NAME}`, 'utf8')
         );
         const companyBDecentralizedIdentifier = keys['CompanyB'].did;
-        const domain = (request.query.domain as string);
-        const url = `http://${domain}:${DATA_SERVER_PORT}/zcaps?controller=${encodeURIComponent(
+        const url = `http://${process.env.B_DOMAIN}:${process.env.B_PORT}/zcaps?controller=${encodeURIComponent(
             companyBDecentralizedIdentifier
         )}`;
         const serverResponse = await fetch(url);
@@ -27,6 +25,7 @@ export default async function handler(
                 port: 4200,
             });
     } catch (e: any) {
-        response.status(500).json({error: String(e)});
+        console.log("Failed to introspect", e);
+        response.status(500).json({error: e});
     }
 }

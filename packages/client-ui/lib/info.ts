@@ -33,21 +33,22 @@ This monorepo is orchestrated by docker-compose and starts four services:
 
 • issuer - runs once, generates ZCAP tokens and example keys, writes them to the shared \`caps\` volume, then exits. The generated files are displayed verbatim in the UI.
 
-• party A dataset-server - uses universal micro-service code (port - 4100) that serves A’s raw and derived datasets under the virtual domain a.example.com and enforces every capability caveat.
+• party A dataset-server - uses universal micro-service code (port - 4100) that serves A’s raw and derived datasets under the virtual domain a.example.com and enforces every capability caveat. Verifies signatures for incoming requests.
 
 • party B dataset-server - identical service from the same microservice code (port - 4200) running under b.example.com.
 
-• client-ui - Next.js + Tailwind + Daisy-UI front-end (host :4500 → container :8080) that demonstrates the four capability scenarios. Every request sent from this UI is signed as “User C” using the \`caller-did\` header.
+• client-ui - Next.js + Tailwind + Daisy-UI front-end (host :4500 → container :8080) that demonstrates the four capability scenarios. Every request sent from this UI is signed as “User C” .
 
 Why we have a GUI
 ─────────────────
 The interface puts all demo artefacts in one place:
 
 • Keys & capabilities from the issuer (side panel).
-• Four one-click scenario buttons that load the matching capability, attach the correct headers and hit the target dataset endpoint.
-• A full request/response dump plus a copy-pasta \`curl\` command so you can repeat the call manually.
+• Four one-click scenario buttons that load the matching capability, attach the correct headers, sign and hit the target dataset endpoint.
+• A full request/response dump.
 
- Two ways to test
-1. Open \`http://<ip>:4500\`, click a scenario - the UI does everything for you.
-2. Call the dataset servers directly (port 4100 for A, 4200 for B) and supply the mandatory headers - use CURLs from the corresponding scenario block - the Manual section is shown after executiong the scenario automatically.
+How to test:
+Click a scenario button - the UI does everything for you.
+
+
 `;
