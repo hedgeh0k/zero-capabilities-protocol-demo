@@ -1,22 +1,32 @@
 import type {NextApiRequest, NextApiResponse} from 'next';
 import fs from 'node:fs/promises';
+import {CAPABILITY_DIRECTORY, KEYS_FILE_NAME,} from '../../lib/constants';
+import {CAPABILITY_FILE_NAMES} from '../../lib/scenarios';
 
 export default async function handler(
-    req: NextApiRequest,
-    res: NextApiResponse
+    request: NextApiRequest,
+    response: NextApiResponse
 ) {
     try {
-        const capsDir = process.env.CAPS_DIR || '/caps';
-        const keysRaw = await fs.readFile(`${capsDir}/keys.json`, 'utf8');
-        const keys = JSON.parse(keysRaw);
-        const files = ['abc-A.json', 'abc-B.json', 'abc-C.json', 'abc-D.json'];
-        const caps: any[] = [];
-        for (const f of files) {
-            const raw = await fs.readFile(`${capsDir}/${f}`, 'utf8');
-            caps.push(JSON.parse(raw) as any);
+        const capabilityDirectory = CAPABILITY_DIRECTORY;
+        const keysJson = await fs.readFile(
+            `${capabilityDirectory}/${KEYS_FILE_NAME}`,
+            'utf8'
+        );
+        const keys = JSON.parse(keysJson);
+        const capabilityFiles = CAPABILITY_FILE_NAMES;
+        const capabilities: any[] = [];
+        const capabilityFileNames: any[] = [];
+        for (const fileName of capabilityFiles) {
+            const rawJson = await fs.readFile(
+                `${capabilityDirectory}/${fileName}`,
+                'utf8'
+            );
+            capabilities.push(JSON.parse(rawJson) as any);
+            capabilityFileNames.push(fileName);
         }
-        res.status(200).json({keys, caps});
+        response.status(200).json({keys, capabilities, capabilityFileNames});
     } catch (e: any) {
-        res.status(500).json({error: String(e)});
+        response.status(500).json({error: String(e)});
     }
 }

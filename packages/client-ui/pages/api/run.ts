@@ -1,54 +1,64 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type {NextApiRequest, NextApiResponse} from 'next';
 import fs from 'node:fs/promises';
-
-const LIST = ['abc-A', 'abc-B', 'abc-C', 'abc-D'] as const;
+import {CAPABILITY_DIRECTORY, DATA_SERVER_PORT, KEYS_FILE_NAME, PORTS,} from '../../lib/constants';
+import {SCENARIO_IDS} from '../../lib/scenarios';
 
 export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
+    request: NextApiRequest,
+    response: NextApiResponse
 ) {
-  const { id } = req.query;
-  if (typeof id !== 'string' || !LIST.includes(id as any)) {
-    res.status(400).json({ error: 'invalid id' });
-    return;
-  }
-  try {
-    const capsDir = process.env.CAPS_DIR || '/caps';
-    const capJSON = await fs.readFile(`${capsDir}/${id}.json`, 'utf8');
-    const cap = JSON.parse(capJSON);
-    const keys = JSON.parse(
-      await fs.readFile(`${capsDir}/keys.json`, 'utf8')
-    );
-    const clientDid = keys['UserC'].did;
-    let path: string;
-    let domain: string;
-    if (cap.allowedActions.includes('transform')) {
-      path = `/${cap.caveats.protocol}.json`;
-      domain = cap.caveats.targetDomain;
-    } else {
-      const t = new URL(cap.invocationTarget);
-      path = t.pathname;
-      domain = t.hostname;
+    const {id: scenarioId} = request.query;
+    if (typeof scenarioId !== 'string' || !SCENARIO_IDS.includes(scenarioId)) {
+        response.status(400).json({error: 'invalid id'});
+        return;
     }
-    const port = Number(process.env.DATA_PORT) || 3000;
-    const url = `http://${domain}:${port}${path}`;
-    const response = await fetch(url, {
-      headers: {
-        'capability-id': cap.id,
-        'caller-did': clientDid,
-      },
-    });
-    const body = await response.text();
-    const headers = Object.fromEntries(response.headers.entries());
-    res.status(200).json({
-      id,
-      url,
-      status: response.status,
-      headers,
-      body,
-      cap,
-    });
-  } catch (e: any) {
-    res.status(500).json({ error: String(e) });
-  }
+    try {
+        const capabilityDirectory = CAPABILITY_DIRECTORY;
+        const capabilityJSON = await fs.readFile(
+            `${capabilityDirectory}/${scenarioId}.json`,
+            'utf8'
+        );
+        const capability = JSON.parse(capabilityJSON);
+        const keyData = JSON.parse(
+            await fs.readFile(
+                `${capabilityDirectory}/${KEYS_FILE_NAME}`,
+                'utf8'
+            )
+        );
+        const clientDecentralizedIdentifier = keyData['UserC'].did;
+        let datasetPath: string;
+        let datasetDomain: string;
+        if (capability.allowedActions.includes('transform')) {
+            datasetPath = `/${capability.caveats.protocol}.json`;
+            datasetDomain = capability.caveats.targetDomain;
+        } else {
+            const target = new URL(capability.invocationTarget);
+            datasetPath = target.pathname;
+            datasetDomain = target.hostname;
+        }
+        const requestHeaders = {
+            'capability-id': capability.id,
+            'caller-did': clientDecentralizedIdentifier,
+        };
+        const url = `http://${datasetDomain}:${DATA_SERVER_PORT}${datasetPath}`;
+        const serverResponse = await fetch(url, {headers: requestHeaders});
+        const responseBody = await serverResponse.text();
+        const responseHeaders = Object.fromEntries(
+            serverResponse.headers.entries()
+        );
+        response.status(200).json({
+            scenarioId,
+            url,
+            datasetPath,
+            port: PORTS.get(datasetDomain),
+            status: serverResponse.status,
+            responseHeaders,
+            responseBody,
+            capability,
+            requestHeaders,
+            clientDecentralizedIdentifier,
+        });
+    } catch (e: any) {
+        response.status(500).json({error: String(e)});
+    }
 }

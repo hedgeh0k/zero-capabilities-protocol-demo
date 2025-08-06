@@ -1,21 +1,21 @@
 /** --------------------------------------------------------------
  * Universal ZCAP‑protected API.
  *
- * This server hosts one party’s datasets.  It supports two kinds of
+ * This server hosts one party’s datasets. It supports two kinds of
  * routes: fetching a dataset file and introspection of issued
- * capabilities.  All requests must include a Capability‑Id header
+ * capabilities. All requests must include a Capability‑Id header
  * containing the capability identifier and a Caller‑Did header
- * indicating who is making the request.  The server verifies that
+ * indicating who is making the request. The server verifies that
  * the supplied capability exists, that the caller is authorised
  * according to the capability rules and caveats, and then serves
  * the requested payload.
  *
  * Simplifications:
- *   • The DATA map is compiled in – no I/O, good for demo.
+ *   • The DATA map is compiled in - no I/O, good for demo.
  *   • Capability revocation/expiry is not implemented → see TODO-PROD.
  *   • Linked data proofs and signature validation are omitted.
  *
- * TODO-PROD – add revocation/expiry checks, integrate storage,
+ * TODO-PROD - add revocation/expiry checks, integrate storage,
  *             validate signatures and support HTTPS via a reverse proxy.
  * -------------------------------------------------------------- */
 
@@ -175,7 +175,7 @@ async function main() {
             const callerLabel = didToLabel[callerDid];
 
             if (!isTransform) {
-                // Non transform – require read action and exact invocation target.
+                // Non transform - require read action and exact invocation target.
                 if (!cap.allowedActions.includes('read')) {
                     log('🔴', 'DENY read not allowed');
                     res.statusCode = 403;
@@ -205,13 +205,13 @@ async function main() {
                     res.end('not authorised');
                     return;
                 }
-                // Success – serve the payload.
+                // Success - serve the payload.
                 log('🟢', `ALLOW read ${file} on ${DOMAIN}`);
                 res.setHeader('content-type', 'application/json');
                 res.end(DATA[file]);
                 return;
             }
-            // Transform – require transform action and protocol caveat.
+            // Transform - require transform action and protocol caveat.
             if (!cap.allowedActions.includes('transform')) {
                 log('🔴', 'DENY transform not allowed');
                 res.statusCode = 403;
@@ -239,7 +239,7 @@ async function main() {
                 res.end('not authorised to read transform');
                 return;
             }
-            // Success – serve the transform payload.
+            // Success - serve the transform payload.
             log('🟢', `ALLOW transform ${file} on ${DOMAIN}`);
             res.setHeader('content-type', 'application/json');
             res.end(DATA[file]);
