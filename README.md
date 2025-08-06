@@ -60,14 +60,13 @@ issued to a given controller DID.
 
 ### Client UI
 
-The client UI listens on port 8080 (exposed as 4500 via
-docker‑compose).  It reads the keys and capabilities from the shared
-volume, lists each scenario on the home page and, when clicked,
-retrieves the dataset through the appropriate server.  The result
-page now shows the scenario description and the exact request URL
-alongside the HTTP status and response body.  The UI signs requests by
-including the caller’s DID in the request headers – the private key
-never leaves the server.
+The client UI is now implemented as a small **Next.js** single page
+application styled with **DaisyUI** components.  It listens on port 8080
+(exposed as 4500 via docker‑compose) and reads keys and capabilities from
+the shared volume.  Scenarios are presented as collapsible panels so
+results appear inline without any full page reloads.  Each run uses
+asynchronous `fetch` calls that attach the caller’s DID to the request –
+the private key never leaves the server.
 
 ## Legal agreements and scenarios
 
