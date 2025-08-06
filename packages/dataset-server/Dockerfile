@@ -4,17 +4,12 @@ FROM node:22-slim
 # Set working directory
 WORKDIR /app
 
-# Copy the common helpers and dataset server code
-COPY packages/common ./packages/common
+# Copy the dataset server code
 COPY packages/dataset-server ./packages/dataset-server
 
 # Install TypeScript globally
 RUN npm install -g typescript
 RUN npm install --save-dev @types/node
-
-# Build the common helpers
-WORKDIR /app/packages/common
-RUN npm run build
 
 # Build the dataset server
 WORKDIR /app/packages/dataset-server

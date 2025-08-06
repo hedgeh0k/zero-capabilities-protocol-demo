@@ -1,31 +1,34 @@
-/** --------------------------------------------------------------
- * Universal ZCAP‑protected API.
+/**
+ * Universal ZCAP‑protected API server.
  *
- * This server hosts one party’s datasets.  It supports two kinds of
+ * This server hosts one party’s datasets. It supports two kinds of
  * routes: fetching a dataset file and introspection of issued
- * capabilities.  All requests must include a Capability‑Id header
+ * capabilities. All requests must include a Capability‑Id header
  * containing the capability identifier and a Caller‑Did header
- * indicating who is making the request.  The server verifies that
- * the supplied capability exists, that the caller is authorised
+ * indicating who is making the request as well as signatures stuff.
+ * The server verifies that the supplied capability exists, that the caller is authorised
  * according to the capability rules and caveats, and then serves
  * the requested payload.
- *
- * Simplifications:
- *   • The DATA map is compiled in – no I/O, good for demo.
- *   • Capability revocation/expiry is not implemented → see TODO-PROD.
- *   • Linked data proofs and signature validation are omitted.
- *
- * TODO-PROD – add revocation/expiry checks, integrate storage,
- *             validate signatures and support HTTPS via a reverse proxy.
- * -------------------------------------------------------------- */
+ **/
 
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from "node:path";
 import {fileURLToPath, URL} from 'node:url';
-// Suppress type checking for imports from compiled common modules.
 // @ts-ignore
-import {log} from '../../common/dist/logger.js';
+import {authorizeZcapInvocation} from '@digitalbazaar/ezcap-express';
+// @ts-ignore
+import {Ed25519Signature2020} from '@digitalbazaar/ed25519-signature-2020';
+// @ts-ignore
+import {documentLoader as zcapDocumentLoader} from '@digitalbazaar/zcap';
+// @ts-ignore
+import {driver as didKeyDriver} from '@digitalbazaar/did-method-key';
+// @ts-ignore
+import {Ed25519VerificationKey2020} from '@digitalbazaar/ed25519-verification-key-2020';
+
+export const log = (tag: string, msg: string, e?: any): void => {
+    console.log(`➤ ${tag.padEnd(6)} ${msg}`, e);
+};
 
 async function loadData(): Promise<Record<string, string>> {
     const DATA_DIR = process.env.DATA_DIR || path.resolve(
@@ -80,11 +83,10 @@ async function loadCaps(retries = 20, delayMs = 250) {
     throw new Error(`unable to load capabilities from ${dir}`);
 }
 
-// Load keys to build a mapping from DID to human friendly label.  The
+// Load keys to build a mapping from DID to human friendly label. The
 // client UI uses these labels to display results and the server uses
-// them when interpreting reader caveats.  Without this mapping the
-// server would not know which caveat entry corresponds to a given
-// DID.
+// them when interpreting reader caveats. Without this mapping the
+// server would not know which caveat entry corresponds to a given DID.
 async function loadDidToLabel(retries = 20, delayMs = 250) {
     const capsDir = process.env.CAPS_DIR || '/caps';
     for (let attempt = 0; attempt < retries; attempt++) {
@@ -105,11 +107,43 @@ async function loadDidToLabel(retries = 20, delayMs = 250) {
     throw new Error(`unable to load keys.json from ${capsDir}`);
 }
 
+const KEYS_FILE = '/caps/keys.json';
+
+export async function loadOwnerDid(): Promise<string> {
+    const keys = JSON.parse(await fs.readFile(KEYS_FILE, 'utf8'));
+
+    const owner = process.env.PARTY_NAME;
+    if (!owner) {
+        throw new Error('PARTY_NAME env var is not set (e.g. "CompanyA").');
+    }
+    if (!keys[owner]) {
+        throw new Error(`"${owner}" not found in keys.json.`);
+    }
+    return keys[owner].did;
+}
+
+/**
+ * ezcap-express callback: {keyId} ➜ verifier()
+ */
+export async function getVerifier({keyId}: { keyId: string }) {
+    const did = keyId.split('#')[0];
+    const {didDocument} = await didKeyDriver().get({did});
+    const vm = didDocument.verificationMethod
+        .find((v: any) => v.id === keyId);
+    if (!vm) {
+        throw new Error(`Verification method ${keyId} not found`);
+    }
+    const key = await Ed25519VerificationKey2020.from(vm);
+    return key.verifier();
+}
+
 async function main() {
-    const DOMAIN = process.env.DOMAIN || 'unknown.example.com';
+    const DOMAIN = process.env.DOMAIN;
     const PORT = Number(process.env.PORT) || 3000;
     const DATA = await loadData();
+
     log('📚', `data module loaded with ${Object.keys(DATA).length} files`);
+
     const {byId: capsById, byController: capsByController} = await loadCaps();
     const didToLabel = await loadDidToLabel();
 
@@ -121,7 +155,7 @@ async function main() {
                 return;
             }
             // Introspection route: return all capabilities issued to a
-            // controller DID.  Example: /zcaps?controller=<did>
+            // controller DID. Example: /zcaps?controller=<did>
             if (req.method === 'GET' && req.url.startsWith('/zcaps')) {
                 const url = new URL(req.url, 'http://localhost');
                 const controllerDid = url.searchParams.get('controller');
@@ -143,6 +177,7 @@ async function main() {
             }
             const url = new URL(req.url, 'http://localhost');
             const file = url.pathname; // e.g. /ab.json
+            const isTransform = file.startsWith('/x-to-');
             // Only serve files contained in the DATA map.
             if (!(file in DATA)) {
                 log('🔴', `file ${file} missing`);
@@ -150,10 +185,37 @@ async function main() {
                 res.end('not found');
                 return;
             }
-            // Extract headers (case insensitive).  Node normalises
+            // Extract headers (case-insensitive).  Node normalises
             // incoming headers to lower case.
             const capId = req.headers['capability-id'] as string | undefined;
             const callerDid = req.headers['caller-did'] as string | undefined;
+
+            try {
+                const ownerId = await loadOwnerDid();
+                const {pathname} = new URL(req.url!, `https://${DOMAIN}`);
+                await authorizeZcapInvocation({
+                    getExpectedValues: () => ({
+                        DOMAIN,
+                        action: isTransform ? 'transform' : 'read',
+                        rootInvocationTarget: `https://${process.env.DOMAIN}${pathname}`,
+                    }),
+                    // request: req,
+                    // expectedHost: DOMAIN,
+                    // expectedAction: isTransform ? 'transform' : 'read',
+                    getInvokedCapability: async (id: string | number) => capsById[id],
+                    getRootController: async () => ownerId,
+                    getVerifier: getVerifier,
+                    suiteFactory: async () => new Ed25519Signature2020(),
+                    documentLoader: zcapDocumentLoader
+                });
+                log('🗝️', `HTTP-sig OK for ${capId}`);
+            } catch (err) {
+                log('🔴', 'HTTP-sig verification failed', err);
+                res.statusCode = 403;
+                res.end('invalid signature');
+                return;
+            }
+
             // Verbose verification log.
             log('🔍', `VERIFY cap ${capId} for ${callerDid} on ${DOMAIN}${file}`);
             if (!capId || !callerDid) {
@@ -169,14 +231,12 @@ async function main() {
                 res.end('capability not recognised');
                 return;
             }
-            // Determine whether the request targets a transform output.
-            const isTransform = file.startsWith('/x-to-');
             // Derive the label of the caller from the DID for reader caveats.
             const callerLabel = didToLabel[callerDid];
 
             if (!isTransform) {
-                // Non transform – require read action and exact invocation target.
-                if (!cap.allowedActions.includes('read')) {
+                // Non transform - require read action and exact invocation target.
+                if (!cap.allowedAction.includes('read')) {
                     log('🔴', 'DENY read not allowed');
                     res.statusCode = 403;
                     res.end('action not allowed');
@@ -205,14 +265,14 @@ async function main() {
                     res.end('not authorised');
                     return;
                 }
-                // Success – serve the payload.
+                // Success - serve the payload.
                 log('🟢', `ALLOW read ${file} on ${DOMAIN}`);
                 res.setHeader('content-type', 'application/json');
                 res.end(DATA[file]);
                 return;
             }
-            // Transform – require transform action and protocol caveat.
-            if (!cap.allowedActions.includes('transform')) {
+            // Transform - require transform action and protocol caveat.
+            if (!cap.allowedAction.includes('transform')) {
                 log('🔴', 'DENY transform not allowed');
                 res.statusCode = 403;
                 res.end('transform not allowed');
@@ -239,7 +299,7 @@ async function main() {
                 res.end('not authorised to read transform');
                 return;
             }
-            // Success – serve the transform payload.
+            // Success - serve the transform payload.
             log('🟢', `ALLOW transform ${file} on ${DOMAIN}`);
             res.setHeader('content-type', 'application/json');
             res.end(DATA[file]);
