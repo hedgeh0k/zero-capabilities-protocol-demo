@@ -75,6 +75,9 @@ services:
       dockerfile: packages/client-ui/Dockerfile
       args:
         CLIENT_LABEL: "UserC"
+    environment:
+      B_DOMAIN: "b.example.com"
+      B_PORT: "3000"
     volumes:
       - ./caps:/caps:ro
     ports:
