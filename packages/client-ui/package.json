@@ -8,6 +8,9 @@
     "start": "next start -p 8080"
   },
   "dependencies": {
+    "@digitalbazaar/ed25519-signature-2020": "^5.4.0",
+    "@digitalbazaar/ed25519-verification-key-2020": "^4.2.0",
+    "@digitalbazaar/http-signature-zcap-invoke": "^6.0.0",
     "autoprefixer": "^10.4.14",
     "daisyui": "^4.4.0",
     "escape-html": "^1.0.3",

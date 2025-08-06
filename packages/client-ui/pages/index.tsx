@@ -129,11 +129,6 @@ export default function Home() {
                                             <pre className="overflow-x-auto text-xs font-bold">
                         {scenarioResults[scenario.id].responseBody}
                       </pre>
-                                            <br/><br/>
-                                            <p className="text-lg font-bold">Manual test:</p>
-                                            <pre className="overflow-x-auto text-xs">
-                        {`curl -H "capability-id: ${scenarioResults[scenario.id].requestHeaders['capability-id']}" -H "caller-did: ${scenarioResults[scenario.id].requestHeaders['caller-did']}" http://<droplet-ip>:${scenarioResults[scenario.id].port}${scenarioResults[scenario.id].datasetPath}`}
-                      </pre>
                                         </div>
                                     )}
                                 </div>
@@ -182,10 +177,6 @@ export default function Home() {
                         null,
                         2
                     )}
-                  </pre>
-                                    <p className="text-lg font-bold">Manual test:</p>
-                                    <pre className="overflow-x-auto text-xs">
-                    {`curl http://<droplet-ip>:${companyBIntrospectionData.port}/zcaps?controller=${encodeURIComponent(companyBIntrospectionData.companyBDecentralizedIdentifier)}`}
                   </pre>
                                 </div>
                             )}

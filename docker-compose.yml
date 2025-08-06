@@ -13,7 +13,7 @@ services:
     # A shared volume that all services mount read only except for the
     # issuer. It contains keys.json and four capability documents.
     volumes:
-      - caps:/caps
+      - ./caps:/caps
     command: [ "node", "dist/index.js" ]
 
   # Party A hosts the primary dataset.
@@ -26,9 +26,10 @@ services:
       # container. It is used when verifying capabilities and logging.
       DOMAIN: "a.example.com"
       DATA_DIR: "/data/root"
+      PARTY_NAME: CompanyA
     volumes:
       - ./packages/dataset-server/data:/data:ro
-      - caps:/caps:ro
+      - ./caps:/caps:ro
     ports:
       - "4100:3000"
     depends_on:
@@ -49,9 +50,10 @@ services:
     environment:
       DOMAIN: "b.example.com"
       DATA_DIR: "/data/derived"
+      PARTY_NAME: CompanyB
     volumes:
       - ./packages/dataset-server/data:/data:ro
-      - caps:/caps:ro
+      - ./caps:/caps:ro
     ports:
       - "4200:3000"
     depends_on:
@@ -74,7 +76,7 @@ services:
       args:
         CLIENT_LABEL: "UserC"
     volumes:
-      - caps:/caps:ro
+      - ./caps:/caps:ro
     ports:
       - "4500:8080"
     depends_on:
@@ -83,5 +85,3 @@ services:
       party-b:
         condition: service_started
 
-volumes:
-  caps: { }

@@ -7,9 +7,8 @@ export default async function handler(
     response: NextApiResponse
 ) {
     try {
-        const capabilityDirectory = CAPABILITY_DIRECTORY;
         const keys = JSON.parse(
-            await fs.readFile(`${capabilityDirectory}/${KEYS_FILE_NAME}`, 'utf8')
+            await fs.readFile(`${CAPABILITY_DIRECTORY}/${KEYS_FILE_NAME}`, 'utf8')
         );
         const companyBDecentralizedIdentifier = keys['CompanyB'].did;
         const domain = (request.query.domain as string);
@@ -27,6 +26,7 @@ export default async function handler(
                 port: 4200,
             });
     } catch (e: any) {
-        response.status(500).json({error: String(e)});
+        console.log("Failed to introspect", e);
+        response.status(500).json({error: e});
     }
 }
